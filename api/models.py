@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from api.models_managers import CustomUserManager
@@ -19,37 +20,50 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email
 
 
-class Teacher(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
-
-
-class Student(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
-
-
 class Course(models.Model):
-    name = models.CharField(max_length=100)
-    teacher = models.ManyToManyField(Teacher, blank=True)
-    student = models.ManyToManyField(Student, blank=True)
+    title = models.CharField(max_length=100, blank=False)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="Author", on_delete=models.CASCADE, blank=False)
+    teacher = models.ManyToManyField(settings.AUTH_USER_MODEL, verbose_name="Teacher", on_delete=models.CASCADE,)
+    student = models.ManyToManyField(settings.AUTH_USER_MODEL, verbose_name="Student", on_delete=models.CASCADE,)
+
+    def __str__(self):
+        return self.title
 
 
 class Lecture(models.Model):
+    topic = models.CharField(max_length=100, blank=False)
     course = models.ForeignKey(Course, blank=False, on_delete=models.CASCADE)
-    topic = models.CharField(blank=False, max_length=20)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="Author", on_delete=models.CASCADE, blank=False)
     file = models.FileField()
+
+    def __str__(self):
+        return self.topic
 
 
 class Homework(models.Model):
-    lecture = models.OneToOneField(Lecture, blank=False, on_delete=models.CASCADE)
-    title = models.CharField(blank=False, max_length=20)
-    task = models.TextField(lank=False, max_length=400)
+    title = models.CharField(max_length=100, blank=False)
+    lecture = models.ForeignKey(Course, blank=False, on_delete=models.CASCADE)
+    task = models.TextField(max_length=400, blank=False)
+
+    def __str__(self):
+        return self.title
 
 
 class Mark(models.Model):
-    mark = models.IntegerField()
+    value = models.PositiveIntegerField()
+    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.value
 
 
 class Comment(models.Model):
-    user = models.ForeignKey(User, blank=False, on_delete=models.CASCADE)
-    mark = models.ForeignKey(Mark, blank=False, on_delete=models.CASCADE)
-    comment = models.CharField(blank=False, max_length=200)
+    comment = models.TextField()
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL,
+                                verbose_name="Author of this comment",
+                                blank=False,
+                                on_delete=models.CASCADE)
+    mark = models.ForeignKey(Mark, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.comment
