@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.authtoken.views import obtain_auth_token
 
 from .views import (registration_view, CourseView, CourseListCreateView, UserListView, CourseLecturesListView,
-LectureView, LectureListCreateView, LectureTasksListView, TaskListCreateView, CommentListView, MarkListView)
+     LectureView, LectureListCreateView, LectureTasksListView, TaskListCreateView, CommentListView, MarkListView)
 
 urlpatterns = [
 
