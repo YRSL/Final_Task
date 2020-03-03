@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser
-from django.contrib.auth.models import PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from api.models_managers import CustomUserManager
 
 
@@ -21,10 +20,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 
 class Course(models.Model):
-    title = models.CharField(max_length=100, blank=False)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="Author", on_delete=models.CASCADE, blank=False)
-    teacher = models.ManyToManyField(settings.AUTH_USER_MODEL, verbose_name="Teacher", on_delete=models.CASCADE,)
-    student = models.ManyToManyField(settings.AUTH_USER_MODEL, verbose_name="Student", on_delete=models.CASCADE,)
+    title = models.CharField(max_length=150)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    teachers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='teachers')
+    students = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='students', blank=True)
 
     def __str__(self):
         return self.title
