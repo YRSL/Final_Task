@@ -8,6 +8,30 @@ class CustomUserSerializer(serializers.ModelSerializer):
         fields = ('id', 'email')
 
 
+class UserRegisterSerializer(serializers.ModelSerializer):
+    is_student = serializers.BooleanField(default=False)
+    is_teacher = serializers.BooleanField(default=False)
+
+    class Meta:
+        model = CustomUser
+        fields = ('email', 'password', 'is_student', 'is_teacher')
+
+    def save(self):
+        student = self.validated_data['is_student']
+        teacher = self.validated_data['is_teacher']
+        if student:
+            user = CustomUser.objects.create_student(email=self.validated_data['email'],
+                                                   password=self.validated_data['password'])
+            user.save()
+            return user
+
+        elif teacher:
+            user = CustomUser.objects.create_teacher(email=self.validated_data['email'],
+                                                   password=self.validated_data['password'])
+            user.save()
+            return user
+
+
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
