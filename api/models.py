@@ -1,85 +1,88 @@
 from django.db import models
-from django.conf import settings
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from rest_framework.authtoken.models import Token
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from api.models_managers import CustomUserManager
+from django.contrib.auth.models import AbstractUser
 
 
-def content_completed_tasks(instance, filename):
-    return '/'.join(['content', 'completed_tasks']) + f'{instance.student}/{filename}'
+class User(AbstractUser):
+    teacher = 0
+    student = 1
 
-
-def content_lectures(instance, filename):
-    return '/'.join(['content', 'lectures']) + f'{instance.course}/{filename}'
-
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_auth_token(sender, instance=None, created=False, **kwargs):
-    if created:
-        Token.objects.create(user=instance)
-
-
-class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField('email address', unique=True)
-    is_student = models.BooleanField(default=False)
-    is_teacher = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
-
-    objects = CustomUserManager()
+    ROLE_CHOICES = (
+        (0, 'Student'),
+        (1, 'Teacher'),
+    )
+    role = models.PositiveSmallIntegerField(choices=ROLE_CHOICES)
 
     def __str__(self):
-        return self.email
+        return '{} {} ({})'.format(self.first_name, self.last_name, self.id)
 
 
 class Course(models.Model):
-    title = models.CharField(max_length=150)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    teachers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='teachers')
-    students = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='students', blank=True)
+    title = models.CharField(db_index=True, unique=True, max_length=64)
+    description = models.TextField(max_length=256)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='courses')
+    student = models.ManyToManyField(User, blank=True, related_name='students',
+                                     limit_choices_to={'role': 0})
+    teacher = models.ManyToManyField(User, blank=True, related_name='teachers',
+                                     limit_choices_to={'role': 1})
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['title']
 
 
 class Lecture(models.Model):
-    topic = models.CharField(max_length=100, blank=False)
-    course = models.ForeignKey(Course, blank=False, on_delete=models.CASCADE)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="Author", on_delete=models.CASCADE, blank=False)
-    file = models.FileField()
+    title = models.CharField(db_index=True, unique=True, max_length=64)
+    description = models.TextField(max_length=256)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lectures')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lectures')
+    presentation = models.FileField(upload_to='presentation/%Y/%m/%d', blank=True, null=True)
 
     def __str__(self):
-        return self.topic
+        return '{}, ({})'.format(self.title, self.course.title)
+
+    class Meta:
+        ordering = ['title']
+
+
+class Task(models.Model):
+    title = models.CharField(db_index=True, unique=True, max_length=64)
+    description = models.TextField(max_length=256)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
+    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, related_name='tasks')
+
+    def __str__(self):
+        return '{} ({})'.format(self.title, self.lecture.title)
+
+    class Meta:
+        ordering = ['title']
 
 
 class Homework(models.Model):
-    title = models.CharField(max_length=100, blank=False)
-    lecture = models.ForeignKey(Course, blank=False, on_delete=models.CASCADE)
-    task = models.TextField(max_length=400, blank=False)
+
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='homework')
+    file = models.FileField(blank=True, null=True, upload_to='homework/%Y/%m/%d')
+    task = models.ForeignKey(Task, on_delete=models.SET_NULL,
+                             blank=True, null=True, related_name='homework')
 
     def __str__(self):
-        return self.title
+        return '{} {}'.format(self.author.first_name, self.author.last_name)
 
 
 class Mark(models.Model):
-    value = models.PositiveIntegerField()
-    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grades')
+    homework = models.OneToOneField(Homework, on_delete=models.CASCADE, related_name='grade')
+    grade = models.IntegerField()
 
     def __str__(self):
-        return self.value
+        return '{} ({})'.format(self.grade, self.author.first_name)
 
 
 class Comment(models.Model):
-    comment = models.TextField()
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL,
-                                verbose_name="Author of this comment",
-                                blank=False,
-                                on_delete=models.CASCADE)
-    mark = models.ForeignKey(Mark, on_delete=models.CASCADE)
+    grade = models.ForeignKey(Mark, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    content = models.TextField(max_length=1024)
 
     def __str__(self):
-        return self.comment
+        return '{} {}'.format(self.author.first_name, self.author.last_name)

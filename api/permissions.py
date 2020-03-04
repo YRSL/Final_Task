@@ -1,43 +1,34 @@
 from rest_framework import permissions
 
 
+class IsUserOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.id == request.user.id
+
+
 class IsOwnerOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return obj.user == request.user
+        return obj.author == request.user
 
 
 class IsTeacherOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_teacher
+        return request.user and request.user.role == 1
 
 
 class IsStudentOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_student
+        return request.user and request.user.role == 0
 
 
-class IsStudent(permissions.BasePermission):
-    message = 'You are not a student'
-
+class IsTeacher(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_student
-
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-
-
-class IsNotYourClassroom(permissions.BasePermission):
-    message = 'Your haven\'t access to this classroom'
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_teacher:
-            return request.user in obj.teachers.all()
-        elif request.user.is_student:
-            return request.user in obj.students.all()
+        return request.user and request.user.role == 1
